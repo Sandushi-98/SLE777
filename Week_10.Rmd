@@ -1,0 +1,118 @@
+---
+title: "Week_10"
+author: "Sandushi"
+date: "2025-09-24"
+output: html_document
+---
+
+#Installing DESeq2 package
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("DESeq2")
+
+```
+
+#Importing HTSeq Count Data
+```{r}
+directory <- "/home/shared/counts"
+
+sampleFiles <- list.files(directory)
+```
+
+#Creating a Sample Table
+```{r}
+sampleCondition <- c('10Days','10Days', '10Days', '45Days','45Days', '45Days')
+```
+
+#make a sampleTable by creating a data frame that includes the sample names, file names, and experimental conditions for each sample
+```{r}
+sampleNames <- gsub("\\.txt$", "", basename(sampleFiles)) 
+sampleTable <- data.frame(sampleName = sampleNames,
+                          fileName = sampleFiles,
+                          condition = sampleCondition)
+sampleTable$condition <- factor(sampleTable$condition)
+
+sampleTable
+```
+#load the DESeq2 library and create a count matrix
+```{r}
+library("DESeq2")
+ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
+directory = directory,
+design = ~ condition)
+```
+
+#Filtering Low-Count Genes
+#Choosing 10 as the count threshold is reasonable for bulk RNA-seq
+```{r}
+keep <- rowSums(counts(ddsHTSeq)) >= 10
+```
+
+#filter the ddsHTSeq dataset to include only rows (genes) that meet the condition specified in keep
+```{r}
+dds <- ddsHTSeq[keep,]
+```
+
+#Setting the Reference Level
+```{r}
+dds$condition <- relevel(dds$condition, ref = "10Days")
+```
+
+#Running DESeq Analysis
+```{r}
+ddsDE <- DESeq(dds)
+```
+#Exploring Differential Expression Results
+```{r}
+res <- results(ddsDE)
+head(res)
+```
+#obtain a summary of the differentially expressed genes
+```{r}
+summary(res)
+```
+#arranges them from the smallest to largest p-value
+```{r}
+res <- res[order(res$padj),]
+head(res)
+```
+
+```{r}
+ressigni <- results(ddsDE, alpha = 0.05, lfcThreshold = 1)
+summary(ressigni)
+```
+#Plot counts
+```{r}
+plotCounts(dds, gene="YDR070C")
+
+
+```
+#Volcano plots
+```{r}
+# Create the volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3, 3)))
+# Add blue points for padj < 0.01
+with(subset(res, padj < 0.01), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+# Add red points for padj < 0.05 and |log2FC| > 2 (log2FC > 2 or log2FC < -2)
+with(subset(res, padj < 0.05 & (log2FoldChange > 2 | log2FoldChange < -2)), 
+     points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+```
+#PCA plot
+
+##performs variance stabilization on the count data from a DESeq2 object (dds)
+```{r}
+vsdata <- varianceStabilizingTransformation(dds, blind=FALSE)
+
+plotPCA(vsdata)
+```
+#Exporting results to CSV files
+```{r}
+write.csv(as.data.frame(res), 
+          file="condition_treated_results.csv")
+
+resSig <- res[order(res$padj),]
+resSig
+```
+
