@@ -1,0 +1,490 @@
+---
+title: "Assessment 4 – SLE777 Applied Bioinformatics"
+author: "Sandushi Umanga"
+date: "2025-09-29"
+output: html_document
+---
+
+```{r}
+### Part 1
+
+#Download the data files to SLE777_Assignment4 folder
+# Gene expression dataset
+download.file(
+  "https://raw.githubusercontent.com/ghazkha/Assessment4/main/gene_expression.tsv",
+  destfile = "SLE777_Assignment4/gene_expression.tsv"
+)
+
+# Growth data dataset
+download.file(
+  "https://raw.githubusercontent.com/ghazkha/Assessment4/main/growth_data.csv",
+  destfile = "SLE777_Assignment4/growth_data.csv"
+)
+
+```
+
+
+```{r}
+1 #Read the file and show the first six genes
+
+#Read a tab-separated file where the first column contains gene IDs
+gene_exp <- read.table("SLE777_Assignment4/gene_expression.tsv",
+                       header = TRUE, row.names = 1, sep = "\t")
+
+#Read the structure and first six rows
+str(gene_exp)
+head(gene_exp)
+```
+```{r}
+2 #Add a new column 'Mean' refers to the average expression level of each gene across all samples in the dataset gene_exp
+
+#Add a new column 'Mean' = mean expression across all samples for each gene
+gene_exp$Mean <- apply(gene_exp, 1, mean)
+
+#Display first six mean values to check
+head(gene_exp$Mean)
+
+```
+
+```{r}
+3 #List the top 10 genes ranked by mean expression
+head(sort(gene_exp$Mean, decreasing = TRUE), 10)
+
+```
+
+```{r}
+4 #Determine the number of genes with a mean <10
+
+#Check which genes have mean expression < 10
+check <- gene_exp$Mean < 10
+
+#Count them by summing TRUE values
+sum(check)
+```
+
+```{r}
+5 #Plot a histogram of the mean expression values
+
+hist(gene_exp$Mean,
+     xlab = "Mean expression",
+     main = "Histogram of Mean Gene Expression")
+```
+```{r}
+6 #Import CSV and check column names
+
+# Import growth data
+growth <- read.csv("SLE777_Assignment4/growth_data.csv", header = TRUE)
+
+# Display column names
+colnames(growth)
+```
+
+```{r}
+7 #Mean and standard deviation of tree circumference at the start and end of the study at both sites
+
+# Split data set by Site
+ne <- growth[growth$Site == "northeast", ]
+sw <- growth[growth$Site == "southwest", ]
+
+# Means and SDs
+mean(ne$Circumf_2005_cm); sd(ne$Circumf_2005_cm)
+mean(ne$Circumf_2020_cm); sd(ne$Circumf_2020_cm)
+
+mean(sw$Circumf_2005_cm); sd(sw$Circumf_2005_cm)
+mean(sw$Circumf_2020_cm); sd(sw$Circumf_2020_cm)
+```
+
+```{r}
+8 #A box plot of tree circumference at the start and end of the study at both sites
+
+# Two boxplots side by side
+par(mfrow = c(1,2))
+
+boxplot(ne$Circumf_2005_cm, ne$Circumf_2020_cm,
+        names = c("2005","2020"),
+        ylab = "Circumference (cm)",
+        main = "Northeast")
+
+boxplot(sw$Circumf_2005_cm, sw$Circumf_2020_cm,
+        names = c("2005","2020"),
+        ylab = "Circumference (cm)",
+        main = "Southwest")
+
+par(mfrow = c(1,1))
+
+```
+
+```{r}
+9 #Mean growth over last 10 years (2010 → 2020)
+
+# Add a new column for 10-year growth
+growth$delta_10yr <- growth$Circumf_2020_cm - growth$Circumf_2010_cm
+
+# Calculate mean growth at each site
+mean(growth$delta_10yr[growth$Site=="northeast"])
+mean(growth$delta_10yr[growth$Site=="southwest"])
+
+```
+
+```{r}
+10 #Use of the t.test to estimate the p-value that the 10 year growth is different at the two sites
+
+t.test(
+  x = growth$delta_10yr[growth$Site=="northeast"],
+  y = growth$delta_10yr[growth$Site=="southwest"]
+)
+
+```
+
+```{r}
+### Part 2
+
+1 #Download the whole set of coding DNA sequences for E. coli and your organism of interest. Count of coding sequences present in these organisms? Present this in the form of a table. Describe any differences between the two organisms
+
+# Create folder structure
+if(!dir.exists("SLE777_Assignment4/seqs")) dir.create("SLE777_Assignment4/seqs", recursive = TRUE)
+
+# Load libraries
+library(R.utils)
+library(Biostrings)
+
+# Download Campylobacter coli CDS (GCA_003780985)
+download.file(
+  "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/003/780/985/GCA_003780985.1_PDT000395653.1/GCA_003780985.1_PDT000395653.1_cds_from_genomic.fna.gz",
+  destfile = "SLE777_Assignment4/seqs/campy_cds.fna.gz"
+)
+
+# E. coli K-12 MG1655 (RefSeq)
+download.file(
+  "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_cds_from_genomic.fna.gz",
+  destfile = "SLE777_Assignment4/seqs/ecoli_cds.fna.gz"
+)
+
+# Unzip the downloaded files and read sequences
+
+library("R.utils")
+gunzip("SLE777_Assignment4/seqs/campy_cds.fna.gz", overwrite=TRUE)
+gunzip("SLE777_Assignment4/seqs/ecoli_cds.fna.gz", overwrite=TRUE)
+
+library("seqinr") 
+campy_cds <- read.fasta("SLE777_Assignment4/seqs/campy_cds.fna")
+ecoli_cds <- read.fasta("SLE777_Assignment4/seqs/ecoli_cds.fna")
+
+# Get counts
+campy_count <- length(campy_cds)
+ecoli_count <- length(ecoli_cds)
+
+# Create table
+cds_table <- data.frame(
+  Organism  = c("E. coli K-12 MG1655", "Campylobacter coli (GCA_003780985)"),
+  CDS_Count = c(ecoli_count, campy_count)
+)
+
+print(cds_table)
+
+
+##Differences between the two organisms
+
+# The genome of E. coli K-12 MG1655 comprises 4318 coding sequences (CDS), in contrast to Campylobacter coli, which has 2018 CDS.  This indicates that E. coli possesses more than double the number of protein-coding genes compared to C. coli.
+# The difference is indicative of their genome sizes and ecological roles.
+# Escherichia coli possesses a larger and more versatile genome, facilitating a broad array of metabolic and regulatory functions, thereby enabling its survival in various environments.
+# In contrast, Campylobacter coli possesses a smaller, more streamlined genome, which aligns with its adaptation to specific host-associated niches and diminished metabolic versatility.
+```
+
+```{r}
+2 #How much coding DNA is there in total for these two organisms? Present this in the form of a table. Describe any differences between the two organisms
+
+library(seqinr)
+
+# Point to the folder in the files pane
+f_ecoli <- "SLE777_Assignment4/seqs/ecoli_cds.fna"
+f_campy <- "SLE777_Assignment4/seqs/campy_cds.fna"
+
+# Quick check
+file.exists(f_ecoli); file.exists(f_campy)
+list.files("SLE777_Assignment4/seqs")
+
+# Read fasta
+cds_ecoli <- read.fasta(f_ecoli)
+cds_campy <- read.fasta(f_campy)
+
+# Lengths per CDS
+len_ecoli <- as.numeric(summary(cds_ecoli)[,1])
+len_campy <- as.numeric(summary(cds_campy)[,1])
+
+# Totals in table
+bp_table <- data.frame(
+  Organism = c("E. coli K-12 MG1655", "Campylobacter coli (GCA_003780985)"),
+  Total_bp = c(sum(len_ecoli), sum(len_campy))
+)
+bp_table
+
+
+##Differences between the two organism
+
+# The coding capacity of the genome in E. coli exceeds that of Campylobacter coli by more than a twofold.  This suggests that E. coli possesses a broader array of proteins, facilitating a wider range of metabolic and regulatory functions.
+# The extensive coding DNA of E. coli indicates its metabolic flexibility and capacity to thrive in diverse environments, including soil, water, intestines, and laboratory cultures.
+# The genome of Campylobacter coli is characterized by a reduced coding DNA pool, resulting in a more streamlined genomic structure.  Host-associated bacteria typically depend on their host environment, resulting in a reduced necessity for a large number of genes for independent survival.
+
+```
+
+```{r}
+3 #Calculate the length of all coding sequences in these two organisms. Make a boxplot of coding sequence length in these organisms. What is the mean and median coding sequence length of these two organisms? Describe any differences between the two organisms.
+
+# Quick check of vector lengths
+length(len_ecoli)   
+length(len_campy)
+
+# Create boxplot of CDS lengths
+boxplot(list(E_coli = len_ecoli, Campy = len_campy),
+        ylab = "CDS length (bp)",
+        main = "CDS Length Distribution")
+
+# Calculate mean and median CDS lengths for E. coli
+mean(len_ecoli)
+median(len_ecoli)
+
+# Calculate mean and median CDS lengths for Campylobacter coli
+mean(len_campy)
+median(len_campy)
+
+## Interpretation of differences
+
+# Analysis of coding sequence (CDS) lengths indicated distinct variations between E. coli K-12 MG1655 and Campylobacter coli (GCA_003780985).  The average CDS length in E. coli was 933 bp, with a median of 825 bp. In contrast, C. coli exhibited a mean length of 882 bp and a median of 753 bp.  The boxplot indicates that both organisms exhibit a comparable distribution, with the majority of CDS concentrated between approximately 500 and 1500 bp. However, E. coli demonstrates a higher frequency of long outliers, which suggests a wider protein-coding capacity.  The findings indicate that E. coli generally encodes larger proteins on average, aligning with its larger and metabolically versatile genome, while C. coli displays a more streamlined coding repertoire suited to its host-associated lifestyle.
+
+```
+```{r}
+4 #Calculate the frequency of DNA bases in the total coding sequences for both organisms. Perform the same calculation for the total protein sequence. Create bar plots for nucleotide and amino acid frequency. Describe any differences between the two organisms.
+
+4.1 ## DNA Base Frequencies
+
+# flatten CDS and force lowercase so count() sees a/c/g/t
+dna_ecoli <- tolower(unlist(cds_ecoli)) 
+dna_campy <- tolower(unlist(cds_campy))
+
+# use seqinr::count with an explicit nucleotide alphabet
+dna_E <- seqinr::count(dna_ecoli, 1, alphabet = c("a","c","g","t")) 
+dna_C <- seqinr::count(dna_campy, 1, alphabet = c("a","c","g","t"))
+
+# proportions 
+dna_E <- dna_E / sum(dna_E) 
+dna_C <- dna_C / sum(dna_C)
+
+# barplots
+barplot(dna_E, main="E. coli Nucleotide Composition", xlab="Base", 
+        ylab="Proportion"); grid() 
+barplot(dna_C, main="Campylobacter coli Nucleotide Composition", 
+        xlab="Base", ylab="Proportion"); grid()
+
+
+##Differences between the two organisms
+ 
+# E. Coli:
+
+# Displays a relatively balanced nucleotide makeup.
+# Each base (A, C, G, and T) is around 23-27%.
+# This indicates a genome with moderate GC content (~50%).
+
+# Campylobacter Coli:
+
+# exhibits a high AT inclination.
+# A (~34%) and T (~32%) are significantly greater than C (~13%) and G (18%).
+# This leads in a low GC content (about 30-35%).
+
+# In Conclusion Campylobacter coli has a significantly higher AT content than E. coli, which has a balanced GC/AT genome.
+```
+```{r}
+## Amino acid frequencies
+
+4.2 ## Amino-acid frequencies 
+
+library(seqinr)
+
+# Read CDS (seqinr format fasta)
+ecoli_cds <- seqinr::read.fasta("SLE777_Assignment4/seqs/ecoli_cds.fna")
+campy_cds <- seqinr::read.fasta("SLE777_Assignment4/seqs/campy_cds.fna")
+
+# Translate CDS to protein sequences
+prot_ecoli <- lapply(ecoli_cds, seqinr::translate)
+prot_campy <- lapply(campy_cds, seqinr::translate)
+
+# Flatten and remove stop codons
+aa_ecoli <- unlist(prot_ecoli, use.names = FALSE)
+aa_campy <- unlist(prot_campy, use.names = FALSE)
+aa_ecoli <- aa_ecoli[aa_ecoli != "*"]
+aa_campy <- aa_campy[aa_campy != "*"]
+
+# Define amino acid alphabet (20 standard aa only)
+aa_alphabet <- seqinr::s2c("ACDEFGHIKLMNPQRSTVWY")
+
+# Count amino acids and normalise
+aa_E <- seqinr::count(aa_ecoli, 1, alphabet = aa_alphabet)
+aa_C <- seqinr::count(aa_campy, 1, alphabet = aa_alphabet)
+
+aa_E <- aa_E / sum(aa_E)
+aa_C <- aa_C / sum(aa_C)
+
+# Barplots
+par(mfrow = c(1,2), mar = c(6,5,4,2))
+barplot(aa_E, main = "E. coli Amino Acid Composition", xlab = "AA", ylab = "Proportion", las = 2)
+barplot(aa_C, main = "C. coli Amino Acid Composition", xlab = "AA", ylab = "Proportion", las = 2)
+par(mfrow = c(1,1))
+
+##Differences between the two organisms
+
+#E.coli
+
+#Amino acid utilization in E. coli is relatively balanced throughout the proteome.  Leucine (L) is the most abundant amino acid, with Alanine (A), Valine (V), and Glycine (G) following closely.  The uniform distribution indicates a balanced codon usage pattern aligned with the organism's moderate GC content.  The occurrence of multiple amino acids at comparable frequencies suggests diminished codon bias and a genome that preserves balance between GC- and AT-rich codons.
+
+#C.coli
+
+#In contrast, Campylobacter coli exhibits a more biased amino acid composition.  Amino acids like Isoleucine (I), Lysine (K), and Asparagine (N), encoded by AT-rich codons, are over-represented, underscoring the AT-rich characteristics of the genome.  Amino acids encoded by GC-rich codons, such as Alanine (A), Glycine (G), and Proline (P), are significantly under-represented relative to E. coli.  The uneven distribution highlights the codon usage bias of C. coli and illustrates how the genomic nucleotide composition directly influences amino acid representation in proteins.
+```
+```{r}
+5 #Create a codon usage table and quantify the codon usage bias among all coding sequences. Describe any differences between the two organisms with respect to their codon usage bias. Provide charts to support your observations.
+
+#Extract all nucleotides
+
+# Flatten all CDS into one long vector of nucleotides
+nt_ecoli <- unlist(cds_ecoli, use.names = FALSE)
+nt_campy <- unlist(cds_campy, use.names = FALSE)
+
+#Codon usage tables
+
+# Raw codon counts
+codon_ecoli <- uco(nt_ecoli, index = "eff", as.data.frame = TRUE)
+codon_campy <- uco(nt_campy, index = "eff", as.data.frame = TRUE)
+
+# Relative Synonymous Codon Usage (RSCU) values
+rscu_ecoli  <- uco(nt_ecoli,  index = "rscu")  
+rscu_campy  <- uco(nt_campy,  index = "rscu")
+
+# Combine into one table for comparison
+codon_usage <- data.frame(
+  Codon = rownames(codon_ecoli),
+  Ecoli_RSCU = rscu_ecoli,
+  Campy_RSCU = rscu_campy
+)
+
+# Review first 10 codons
+
+head(codon_usage, 10)   
+
+#Simple chart for codon bias
+
+##Codon usage bias can be visualised by plotting RSCU values in a side-by-side format.
+
+# Barplots of RSCU values (first 20 codons only as example)
+par(mfrow = c(1,2), mar = c(8,4,4,2))
+barplot(rscu_ecoli[1:20], names.arg = names(rscu_ecoli)[1:20],
+        las = 2, main = "E. coli Codon Usage (RSCU)", ylab = "RSCU")
+barplot(rscu_campy[1:20], names.arg = names(rscu_campy)[1:20],
+        las = 2, main = "C. coli Codon Usage (RSCU)", ylab = "RSCU")
+par(mfrow = c(1,1))
+
+
+##Differences between the two organisms with respect to their codon usage bias
+
+#Escherichia coli:
+
+# Codon usage exhibits greater balance, as RSCU values approach 1 for the majority of codons.
+# This suggests that E. coli does not exhibit a strong preference for or avoidance of particular synonymous codons.
+# Codons such as AAA, ACC, and AGC exhibit moderate enrichment, with RSCU values approximately between 1.5 and 1.7; however, the majority are confined to a limited range.
+# Reflects the moderate GC-content of the E. coli genome and its effective codon optimisation for translation.
+
+#Campylobacter coli
+
+# Exhibits a more pronounced codon usage bias.
+# Certain codons, such as AGA, exhibit significant over-representation (RSCU > 2.5), whereas others demonstrate under-representation (RSCU < 0.5).
+# Reflects a preference for AT-rich codons, aligning with the overall AT-rich composition of its genome.
+# This indicates a selective pressure on specific codons, potentially associated with tRNA abundance and the evolution of the genome.
+
+```
+
+```{r}
+6 #In the organism of interest, identify 10 protein sequence k-mers of length 3-5 which are the most over- and under-represented k-mers in your organism of interest. Are these k-mers also over- and under-represented in E. coli to a similar extent? Provide plots to support your observations. Why do you think these sequences are present at different levels in the genomes of these organisms?
+
+
+# 1. Prepare protein sequences (flatten and clean)
+aa_ecoli <- unlist(prot_ecoli, use.names = FALSE)
+aa_campy <- unlist(prot_campy, use.names = FALSE)
+
+# remove stop codons (*) if present
+aa_ecoli <- aa_ecoli[aa_ecoli != "*"]
+aa_campy <- aa_campy[aa_campy != "*"]
+
+# define alphabet (20 amino acids, no stop)
+aa_alphabet <- seqinr::s2c("ACDEFGHIKLMNPQRSTVWY")
+
+# 2. Count k-mers of length 3, 4, 5
+kmer3_c <- seqinr::count(aa_campy, wordsize=3, alphabet=aa_alphabet)
+kmer4_c <- seqinr::count(aa_campy, wordsize=4, alphabet=aa_alphabet)
+kmer5_c <- seqinr::count(aa_campy, wordsize=5, alphabet=aa_alphabet)
+
+kmer3_e <- seqinr::count(aa_ecoli, wordsize=3, alphabet=aa_alphabet)
+kmer4_e <- seqinr::count(aa_ecoli, wordsize=4, alphabet=aa_alphabet)
+kmer5_e <- seqinr::count(aa_ecoli, wordsize=5, alphabet=aa_alphabet)
+
+# 3. Normalize to frequencies
+freq3_c <- kmer3_c / sum(kmer3_c)
+freq4_c <- kmer4_c / sum(kmer4_c)
+freq5_c <- kmer5_c / sum(kmer5_c)
+
+freq3_e <- kmer3_e / sum(kmer3_e)
+freq4_e <- kmer4_e / sum(kmer4_e)
+freq5_e <- kmer5_e / sum(kmer5_e)
+
+# 4. Helper to safely build comparison tables
+mk_comp <- function(freq_c, freq_e, n=10, top=TRUE){
+  freq_c <- freq_c[is.finite(freq_c) & !is.na(freq_c)]
+  if (length(freq_c) == 0) return(matrix(0, nrow=2, ncol=0))
+  ord <- order(freq_c, decreasing=top)
+  sel <- names(freq_c)[ord][seq_len(min(n, length(freq_c)))]
+  ec  <- freq_e[sel]; ec[is.na(ec)] <- 0
+  out <- rbind(Campy=freq_c[sel], Ecoli=ec)
+  out[, order(out[1,], decreasing=top), drop=FALSE]
+}
+
+# 5. Build top and bottom sets for each k
+comp_top3    <- mk_comp(freq3_c, freq3_e, 10, TRUE)
+comp_bottom3 <- mk_comp(freq3_c, freq3_e, 10, FALSE)
+
+comp_top4    <- mk_comp(freq4_c, freq4_e, 10, TRUE)
+comp_bottom4 <- mk_comp(freq4_c, freq4_e, 10, FALSE)
+
+comp_top5    <- mk_comp(freq5_c, freq5_e, 10, TRUE)
+comp_bottom5 <- mk_comp(freq5_c, freq5_e, 10, FALSE)
+
+# 6. Plot (draw one by one to avoid margin issues)
+par(mar=c(10,5,4,2))
+
+if (ncol(comp_top3) > 0)
+  barplot(comp_top3, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Top 10 3-mers", ylab="Frequency")
+if (ncol(comp_bottom3) > 0)
+  barplot(comp_bottom3, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Bottom 10 3-mers", ylab="Frequency")
+
+if (ncol(comp_top4) > 0)
+  barplot(comp_top4, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Top 10 4-mers", ylab="Frequency")
+if (ncol(comp_bottom4) > 0)
+  barplot(comp_bottom4, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Bottom 10 4-mers", ylab="Frequency")
+
+if (ncol(comp_top5) > 0)
+  barplot(comp_top5, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Top 10 5-mers", ylab="Frequency")
+if (ncol(comp_bottom5) > 0)
+  barplot(comp_bottom5, beside=TRUE, las=2,
+          col=c("darkred","steelblue"),
+          main="Bottom 10 5-mers", ylab="Frequency")
+
+
+```
+
